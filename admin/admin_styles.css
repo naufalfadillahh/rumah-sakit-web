@@ -1,0 +1,22 @@
+/* Admin Dashboard Custom Styles */
+.header_section {
+    background-color: #f8f9fa;
+}
+
+.container h2 {
+    color: #007bff;
+}
+
+.table {
+    background-color: #fff;
+    border: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.btn-danger {
+    color: #fff;
+}
