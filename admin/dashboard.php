@@ -1,141 +1,85 @@
 <?php
-session_start();
-if (!isset($_SESSION['admin'])) {
-    header("Location: index.php");
-    exit;
-}
+require __DIR__ . '/auth.php';
+require_admin();
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "hospital_db";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
+$appointments = $conn->query('SELECT * FROM appointments ORDER BY created_at DESC')->fetch_all(MYSQLI_ASSOC);
+$contacts = $conn->query('SELECT * FROM contacts ORDER BY created_at DESC')->fetch_all(MYSQLI_ASSOC);
+$today = date('Y-m-d');
+$upcoming = count(array_filter($appointments, fn($a) => $a['appointment_date'] >= $today));
+$flash = $_SESSION['flash'] ?? ''; unset($_SESSION['flash']);
+$token = csrf_token();
 ?>
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" type="text/css" href="../css/bootstrap.css">
-    <link rel="stylesheet" type="text/css" href="../css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard Admin | Yamazaki Hospital</title>
+    <link rel="stylesheet" href="../css/bootstrap.css">
     <link rel="stylesheet" href="admin_styles.css">
 </head>
-<body>
-
-<div class="hero_area">
-    <!-- Header Section -->
-    <header class="header_section">
-        <div class="header_top">
-            <div class="container">
-                <div class="contact_nav">
-                    <span>Admin Dashboard</span>
-                    <a href="logout.php" class="btn btn-danger ml-auto">Logout</a>
-                </div>
-            </div>
-        </div>
-        <div class="header_bottom">
-            <div class="container-fluid">
-                <nav class="navbar navbar-expand-lg custom_nav-container">
-                    <a class="navbar-brand" href="#">
-                        <img src="../images/logo.png" alt="logo">
-                    </a>
-                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                        <ul class="navbar-nav">
-                            <li class="nav-item active">
-                                <a class="nav-link" href="dashboard.php">Dashboard</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="manage_appointments.php">Manage Appointments</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="manage_contacts.php">Manage Contacts</a>
-                            </li>
-                        </ul>
-                    </div>
-                </nav>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <div class="container mt-5">
-        <h2>Welcome to the Admin Dashboard</h2>
-
-        <div class="row">
-            <div class="col-md-6">
-                <h3>Recent Appointments</h3>
-                <table class="table table-bordered">
-                    <tr>
-                        <th>ID</th>
-                        <th>Patient Name</th>
-                        <th>Doctor</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                    <?php
-                    $sql = "SELECT * FROM appointments ORDER BY created_at DESC LIMIT 5";
-                    $result = $conn->query($sql);
-                    while ($row = $result->fetch_assoc()) {
-                        echo "<tr>
-                            <td>{$row['id']}</td>
-                            <td>{$row['patient_name']}</td>
-                            <td>{$row['doctor_name']}</td>
-                            <td>{$row['appointment_date']}</td>
-                            <td><a href='delete_appointment.php?id={$row['id']}' class='btn btn-danger'>Delete</a></td>
-                        </tr>";
-                    }
-                    ?>
-                </table>
-            </div>
-
-            <div class="col-md-6">
-                <h3>Recent Contact Messages</h3>
-                <table class="table table-bordered">
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Message</th>
-                        <th>Actions</th>
-                    </tr>
-                    <?php
-                    $sql = "SELECT * FROM contacts ORDER BY created_at DESC LIMIT 5";
-                    $result = $conn->query($sql);
-                    while ($row = $result->fetch_assoc()) {
-                        echo "<tr>
-                            <td>{$row['id']}</td>
-                            <td>{$row['full_name']}</td>
-                            <td>{$row['email']}</td>
-                            <td>{$row['message']}</td>
-                            <td><a href='delete_contact.php?id={$row['id']}' class='btn btn-danger'>Delete</a></td>
-                        </tr>";
-                    }
-                    ?>
-                </table>
-            </div>
-        </div>
+<body class="admin">
+<header class="admin-top">
+    <a href="../index.html" class="brand"><img src="../images/logo.png" alt=""> Yamazaki Hospital · Admin</a>
+    <div>
+        <span class="who">Halo, <?= e($_SESSION['admin']) ?></span>
+        <a href="logout.php" class="btn btn-outline-light btn-sm">Keluar</a>
     </div>
-</div>
-
-<!-- Footer Section -->
-<footer class="footer_section">
-    <div class="container">
-        <p>&copy; <span id="displayYear"></span> All Rights Reserved By Your Hospital Name</p>
+</header>
+<main class="container py-4">
+    <?php if ($flash): ?><div class="alert alert-success"><?= e($flash) ?></div><?php endif; ?>
+    <div class="stats">
+        <div class="stat"><b><?= count($appointments) ?></b><span>Total janji temu</span></div>
+        <div class="stat"><b><?= $upcoming ?></b><span>Jadwal mendatang</span></div>
+        <div class="stat"><b><?= count($contacts) ?></b><span>Pesan masuk</span></div>
     </div>
-</footer>
 
-<!-- Scripts -->
-<script src="../js/jquery-3.4.1.min.js"></script>
-<script src="../js/bootstrap.js"></script>
-<script src="../js/custom.js"></script>
+    <section class="panel" id="janji">
+        <h2>Janji temu</h2>
+        <?php if (!$appointments): ?><p class="empty">Belum ada janji temu.</p><?php else: ?>
+        <div class="table-responsive"><table class="table">
+            <thead><tr><th>Tanggal</th><th>Pasien</th><th>Dokter</th><th>Poli</th><th>Telepon</th><th>Keluhan</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($appointments as $a): ?>
+                <tr class="<?= $a['appointment_date'] < $today ? 'past' : '' ?>">
+                    <td><?= e(date('d M Y', strtotime($a['appointment_date']))) ?></td>
+                    <td><?= e($a['patient_name']) ?></td>
+                    <td><?= e($a['doctor_name']) ?></td>
+                    <td><?= e($a['department_name']) ?></td>
+                    <td><?= e($a['phone_number']) ?></td>
+                    <td><?= e($a['symptoms']) ?></td>
+                    <td><form method="POST" action="delete.php" onsubmit="return confirm('Hapus janji temu ini?')">
+                        <input type="hidden" name="csrf" value="<?= e($token) ?>"><input type="hidden" name="type" value="appointment"><input type="hidden" name="id" value="<?= (int)$a['id'] ?>">
+                        <button class="btn btn-sm btn-outline-danger">Hapus</button></form></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table></div>
+        <?php endif; ?>
+    </section>
+
+    <section class="panel" id="pesan">
+        <h2>Pesan masuk</h2>
+        <?php if (!$contacts): ?><p class="empty">Belum ada pesan.</p><?php else: ?>
+        <div class="table-responsive"><table class="table">
+            <thead><tr><th>Waktu</th><th>Nama</th><th>Email</th><th>Telepon</th><th>Pesan</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($contacts as $c): ?>
+                <tr>
+                    <td><?= e(date('d M Y H:i', strtotime($c['created_at']))) ?></td>
+                    <td><?= e($c['full_name']) ?></td>
+                    <td><a href="mailto:<?= e($c['email']) ?>"><?= e($c['email']) ?></a></td>
+                    <td><?= e($c['phone_number']) ?></td>
+                    <td class="msg"><?= nl2br(e($c['message'])) ?></td>
+                    <td><form method="POST" action="delete.php" onsubmit="return confirm('Hapus pesan ini?')">
+                        <input type="hidden" name="csrf" value="<?= e($token) ?>"><input type="hidden" name="type" value="contact"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
+                        <button class="btn btn-sm btn-outline-danger">Hapus</button></form></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table></div>
+        <?php endif; ?>
+    </section>
+</main>
 </body>
 </html>
-
-<?php $conn->close(); ?>
