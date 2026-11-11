@@ -1,26 +1,5 @@
 <?php
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "hospital_db";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
-$sql = "SELECT * FROM doctors";
-$result = $conn->query($sql);
-
-$doctors = [];
-if ($result->num_rows > 0) {
-    while($row = $result->fetch_assoc()) {
-        $doctors[] = $row;
-    }
-}
-
-echo json_encode($doctors);
-
-$conn->close();
-?>
+require __DIR__ . '/config.php';
+header('Content-Type: application/json; charset=utf-8');
+$result = $conn->query('SELECT id, name, specialty FROM doctors ORDER BY name');
+echo json_encode($result ? $result->fetch_all(MYSQLI_ASSOC) : []);

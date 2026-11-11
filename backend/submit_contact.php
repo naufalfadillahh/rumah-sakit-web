@@ -1,30 +1,20 @@
 <?php
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "hospital_db";
+require __DIR__ . '/config.php';
 
-$conn = new mysqli($servername, $username, $password, $dbname);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: ../contact.html'); exit; }
 
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+$name    = field('full_name', 100);
+$email   = field('email', 100);
+$phone   = field('phone_number', 20);
+$message = field('message', 1000);
+
+if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || $phone === '' || $message === '') {
+    result_page('Data belum lengkap', 'Mohon isi nama, email yang valid, nomor telepon, dan pesan.', false);
 }
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $full_name = $_POST['full_name'];
-    $email = $_POST['email'];
-    $phone_number = $_POST['phone_number'];
-    $message = $_POST['message'];
-
-    $sql = "INSERT INTO contacts (full_name, email, phone_number, message)
-            VALUES ('$full_name', '$email', '$phone_number', '$message')";
-
-    if ($conn->query($sql) === TRUE) {
-        echo "Message sent successfully!";
-    } else {
-        echo "Error: " . $sql . "<br>" . $conn->error;
-    }
+$stmt = $conn->prepare('INSERT INTO contacts (full_name, email, phone_number, message) VALUES (?, ?, ?, ?)');
+$stmt->bind_param('ssss', $name, $email, $phone, $message);
+if ($stmt->execute()) {
+    result_page('Pesan terkirim', 'Terima kasih sudah menghubungi kami. Tim kami akan membalas melalui email.');
 }
-
-$conn->close();
-?>
+result_page('Gagal mengirim', 'Terjadi kesalahan pada server. Silakan coba lagi.', false);
